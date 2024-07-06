@@ -1,0 +1,7 @@
+/checkpoints/
+/topo_assets/
+/thirdparty/
+__pycache__
+/data/
+/images/
+.idea

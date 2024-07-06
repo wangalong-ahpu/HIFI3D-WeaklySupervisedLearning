@@ -1,0 +1,60 @@
+
+output_dir: "/root/autodl-tmp/demo/AlbedoGAN_TR/pretrain/0517_resnet50_b8K1_68_4090"
+#tensorboard --logdir /media/wang/SSD_2/demo/DECA_TR/pretrain/0307_convnextV2_8_235_1080/logs
+pretrained_modelpath: '/root/autodl-tmp/demo/AlbedoGAN/data/deca_model.tar'
+#pretrained_modelpath: '/media/wang/SSD_1/demo/DECA_TR/pretrain/4090_convnextV2_16_235_0108_none/model.tar'
+
+#数据集地址
+facescape_dir: "/root/autodl-tmp/Datasets/fmview_train_new"
+small_facescape_dir: "/root/autodl-tmp/Datasets/small_facescape_new"
+vggface2_dir: "/root/autodl-tmp/Datasets/vggface2_new"
+lymh_dir: "/root/autodl-tmp/Datasets/LYMH_new"
+
+
+aflw2000_dir: "/root/autodl-tmp/Datasets/AFLW2000/image/3"
+
+use_mica: False
+train_other_params: False
+
+
+dataset:
+#  training_data: ['small_facescape','facescape','vggface2']
+  training_data: ['small_facescape','facescape']
+  eval_data: [ 'aflw2000' ]
+  batch_size: 32
+  K: 1 #注意修改<数据集文件夹>
+  isSingle: True
+loss:
+  photo: 0.
+  id: 0.
+  useSeg: False
+  shape_consistency: False
+  detail_consistency: False
+  lmk_num: 235 #注意修改aflw2000_dir
+  lmk: 2.
+  mouthkc: 1.0  # 新新新新新新新新新新新新新新新新新新新新新新新新新新新新新新新新新新新新新新新
+
+  eyed: 1.  #1.0.
+  lipd: 1. #0.3
+  id_shape_only: False
+  reg_shape: 1e-04
+  reg_exp: 6e-05
+  reg_light: 0.
+  reg_tex: 0.
+
+train:
+  resume: True
+  lr: 2e-4 #5e-4
+  max_epochs: 30
+  max_steps: 10000000
+  log_steps: 20000
+  vis_steps: 20000
+  checkpoint_steps: 1000
+  val_steps: 20000
+  eval_steps: 100000000
+model:
+  E_flame_backbone: 'resnet50'
+  n_shape: 100
+  n_exp: 50
+
+#resnet50 convnext_v1  convnext_v2_tiny convnext_v2_atto

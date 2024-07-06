@@ -1,0 +1,53 @@
+output_dir: "/media/wang/SSD_1/demo/VIFR_TR/pretrain/0617_resnet50_b8K1_68_1080"
+pretrained_modelpath: ''
+
+
+dataset:
+  training_data: ['small_facescape','facescape']
+  eval_data: [ 'aflw2000' ]
+  batch_size: 8
+  num_workers: 4
+  K: 1 #注意修改<数据集文件夹>
+  isSingle: True
+  #数据集地址
+  facescape_dir: "/media/wang/SSD_2/Datasets/FaceScape/fmview_train_new"
+  small_facescape_dir: "/media/wang/SSD_2/Datasets/test_arcface"
+  vggface2_dir: "/media/wang/SSD_2/Datasets/vggface2_new"
+  lymh_dir: "/media/wang/SSD_2/Datasets/LYMH"
+  aflw2000_dir: "/media/wang/SSD_2/Datasets/AFLW2000/image/2"
+
+loss:
+  photo: 0.2
+  id: 0.
+  useSeg: False
+  shape_consistency: False
+  detail_consistency: False
+  lmk_num: 68 #注意修改aflw2000_dir
+  lmk: 2.
+  mouthkc: 0.0  # 新新新新新新新新新新新新新新新新新新新新新新新新新新新新新新新新新新新新新新新
+
+  eyed: 1.  #1.0.
+  lipd: 1. #0.3
+  id_shape_only: False
+  reg_id: 1e-04
+  reg_exp: 6e-05
+  reg_gamma: 0.
+  reg_tex: 0.
+
+train:
+  resume: True
+  lr: 2e-4 #5e-4
+  max_epochs: 30
+  max_steps: 10000000
+  log_steps: 200
+  vis_steps: 50
+  checkpoint_steps: 1000
+  val_steps: 200
+  eval_steps: 10000
+model:
+  E_hifi3d_backbone: 'resnet50'
+  n_id: 532
+  n_exp: 45
+  n_tex: 439
+
+#resnet50 convnext_v1  convnext_v2_tiny convnext_v2_atto

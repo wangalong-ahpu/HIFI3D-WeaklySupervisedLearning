@@ -1,0 +1,55 @@
+# '''
+# second step:
+# train the coarse model for 1.5 epochs with a batch size of 32, with 4 images per subject
+# with 𝜆𝑝ℎ𝑜=2.0, 𝜆𝑖𝑑=0.2, 𝜆𝑠𝑐=1.0, 𝜆𝑙𝑚𝑘=1.0, 𝜆𝑒𝑦𝑒=1.0, 𝜆𝜷=1𝑒−4, and 𝜆𝝍=1𝑒−4.
+
+# Time:
+# around 15min/1000iterations
+# in total, needs around
+
+# # 1080ti
+# output_dir: "/home/wang/wal/demo_test/DECA/train/step_2_coarse/"
+# pretrained_modelpath: "/home/wang/wal/demo_test/DECA/train/step_1_pretrain/model.tar"
+# 4090
+output_dir: "/media/c723/SSD_1/demo/DECA/train/step_2_coarse/"
+pretrained_modelpath: "/media/c723/SSD_1/demo/DECA/train/step_1_pretrain/model.tar"
+
+
+dataset:
+  batch_size: 6
+  K: 1
+train:
+  resume: True
+  max_epochs: 10
+  max_steps: 2000000
+  log_steps: 200
+  vis_steps: 200
+  checkpoint_steps: 500
+  val_steps: 500
+  eval_steps: 10000
+  lr: 1e-4 #5e-4
+model:
+  E_flame_backbone: 'convnext_v2_tiny'
+  face_eye_mask_path: "/home/wang/wal/demo_test/DECA/data/uv_face_eye_mask_y.png"
+#  face_eye_mask_path: "/media/wang/SSD_2/demo/DECA/data/uv_face_eye_mask_y.png"
+#  flame_lmk_embedding_path: "/home/wang/wal/demo_test/DECA/data/res.npy"
+loss:
+  lmk_num: 191
+  eyed:  1.0  #1.0
+  lipd: 0.5  #0.3
+  photo: 2.0 #2.0
+  useSeg: False
+  id: 0.5 #0.5
+  id_shape_only: False
+  reg_shape: 1e-04
+  reg_exp: 1e-04
+  reg_tex: 1e-04
+  reg_light: 1.
+  reg_jaw_pose: 1. #1.
+  #resnet50 convnext_v1  convnext_v2_tiny convnext_v2_atto
+
+# loss:
+#   shape_consistency: False
+#   detail_consistency: False
+#   useSeg: False
+# python main_train.py --cfg configs/release_version/deca_coarse.yml

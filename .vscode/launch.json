@@ -1,0 +1,49 @@
+{
+    // 使用 IntelliSense 了解相关属性。 
+    // 悬停以查看现有属性的描述。
+    // 欲了解更多信息，请访问: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+
+        {
+            "name": "测试",
+            "type": "python",
+            "request": "launch",
+            "program": "demos/demo_reconstruct.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [
+                "-i",
+                "TestSamples/REALY_TEST",
+                "-s",
+                "TestSamples/REALY_TEST/results"
+            ]
+        },
+        {
+            "name": "训练",
+            "type": "python",
+            "request": "launch",
+            "program": "main_train.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [
+                "--cfg",
+                "configs/1080/pretrain.yml"
+            ]
+        },
+        {
+            "name": "测试2",
+            "type": "python",
+            "request": "launch",
+            "program": "demos/demo_reconstruct_pro.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [
+                "-i",
+                "TestSamples/REALY_TEST",
+                "-s",
+                "TestSamples/REALY_TEST/results"
+            ]
+        }
+    ]
+}

@@ -1,0 +1,48 @@
+# '''
+# first step:
+# pre-train the coarse model (i.e.𝐸𝑐) for two epochs with a batch size of 64,
+# with 𝜆𝑙𝑚𝑘=1𝑒−4, 𝜆𝑒𝑦𝑒=1.0, 𝜆𝜷=1𝑒−4, and 𝜆𝝍=1𝑒−4
+
+# Why:
+# training with only lmk loss for good initialization, 
+# because the use of photometric loss needs good initialization both in regression and optimization
+# and also, photometric loss needs differentiable rendering that makes the training slow
+# 
+# 
+# '''
+
+# # 1080ti
+# output_dir: "/home/wang/wal/demo_test/DECA/train/step_1_pretrain"
+# pretrained_modelpath: ''
+
+# 4090
+output_dir: "/media/c723/SSD_1/demo/DECA/train/pretrain_4090_16_68_0105"
+pretrained_modelpath: '/media/c723/SSD_1/demo/DECA/data/deca_model.tar'
+
+
+dataset:
+  batch_size: 16
+  K: 1
+loss:
+  photo: 0.0
+  id: 0.
+  useSeg: False
+  shape_consistency: False
+  lmk_num: 191
+  eyed: 0.3  #1.0
+  lipd: 0.3 #0.3
+
+  reg_light: 0.
+  reg_tex: 0.
+
+train:
+  resume: True
+  max_epochs: 30
+  max_steps: 10000000
+  log_steps: 100
+  vis_steps: 200
+  checkpoint_steps: 500
+  val_steps: 300
+  eval_steps: 10000
+model:
+  E_flame_backbone: 'convnext_v2_tiny'

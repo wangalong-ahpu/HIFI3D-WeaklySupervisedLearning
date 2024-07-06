@@ -1,0 +1,66 @@
+# '''
+# second step:
+# train the coarse model for 1.5 epochs with a batch size of 32, with 4 images per subject
+# with 𝜆𝑝ℎ𝑜=2.0, 𝜆𝑖𝑑=0.2, 𝜆𝑠𝑐=1.0, 𝜆𝑙𝑚𝑘=1.0, 𝜆𝑒𝑦𝑒=1.0, 𝜆𝜷=1𝑒−4, and 𝜆𝝍=1𝑒−4.
+
+# Time:
+# around 15min/1000iterations
+# in total, needs around
+
+# # 1080ti
+output_dir: "/media/wang/SSD_2/demo/AlbedoGAN_TR/coarse/0527_resnet50_b8K1_68_1080"
+pretrained_modelpath: /media/wang/SSD_2/demo/AlbedoGAN/data/deca_model.tar'
+# 4090
+#output_dir: "/media/c723/SSD_1/demo/DECA/train/coarse_4090_16_191_0105/"
+#pretrained_modelpath: "/media/c723/SSD_1/demo/DECA/train/step_1_pretrain/model.tar"
+#数据集地址
+facescape_dir: "/media/wang/SSD_2/Datasets/FaceScape/fmview_train_new"
+small_facescape_dir: "/media/wang/SSD_2/Datasets/FaceScape/small_facescape_new"
+vggface2_dir: "/media/wang/SSD_2/Datasets/vggface2_new"
+lymh_dir: "/media/wang/SSD_2/Datasets/LYMH"
+aflw2000_dir: "/media/wang/SSD_2/Datasets/AFLW2000/image/2"
+
+use_mica: False
+train_other_params: False
+
+dataset:
+  training_data: ['small_facescape','facescape']
+  eval_data: [ 'aflw2000' ]
+  batch_size: 3
+  num_workers: 4
+  K: 2
+  isSingle: False
+train:
+  resume: True
+  max_epochs: 11
+  max_steps: 2000000
+  log_steps: 200
+  vis_steps: 100
+  checkpoint_steps: 1000
+  val_steps: 1000
+model:
+  #resnet50 convnext_v1  convnext_v2_tiny convnext_v2_atto
+  E_flame_backbone: 'resnet50'
+  # face_eye_mask_path: "/home/wang/wal/demo_test/DECA/data/uv_face_eye_mask_y.png"
+  face_eye_mask_path: "/media/wang/SSD_2/demo/DECA/data/uv_face_eye_mask.png"
+#  flame_lmk_embedding_path: "/home/wang/wal/demo_test/DECA/data/res.npy"
+  n_shape: 100
+  n_exp: 50
+loss:
+  # with 𝜆𝑝ℎ𝑜=2.0, 𝜆𝑖𝑑=0.2, 𝜆𝑠𝑐=1.0, 𝜆𝑙𝑚𝑘=1.0, 𝜆𝑒𝑦𝑒=1.0, 𝜆𝜷=1𝑒−4, and 𝜆𝝍=1𝑒−4.
+  photo: 1.0 #2.0
+  lmk_num: 68
+  lmk: 1.
+  mouthkc: 0.0  # 新新新新新新新新新新新新新新新新新新新新新新新新新新新新新新新新新新新新新新新
+  eyed:  1.0  #1.0
+  lipd: 0.3  #0.3
+  id: 0.5 #0.5
+  id_shape_only: True
+  shape_consistency: True
+  reg_shape: 1e-04
+  reg_exp: 1e-04
+  reg_tex: 1e-04
+  reg_light: 1.
+  reg_jaw_pose: 1. #1.
+  useSeg: True
+#python main_train.py --cfg configs/1080/coarse.yml
