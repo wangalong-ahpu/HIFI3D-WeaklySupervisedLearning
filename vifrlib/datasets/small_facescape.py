@@ -171,3 +171,70 @@ class SmallFacescapeDataset(Dataset):
             print(f"{maskpath} not found!")
             mask = np.ones((h, w))
         return mask
+
+class SmallFaceScape_TrainDataset(Dataset):
+    def __init__(self, K, train_path):
+
+        self.K = K # K<16
+        self.train_path = train_path
+        datafile = os.path.join(train_path, f'train_list_k{K}.npy')
+        self.data_lines = np.load(datafile).astype('str')
+
+    def __len__(self):
+        return len(self.data_lines)
+
+    def __getitem__(self, idx):
+        img_list = [] # 224*224 图片
+        skin_mask_list = [] # 皮肤掩膜
+        parse_mask_list = [] # 面部解析掩膜
+        lmk_list = [] # 人脸关键点（68个）
+        M_list = [] # 暂不知道作用
+
+        if self.K != 1:
+            random_ind = np.random.permutation(16)[:self.K]
+            for i in random_ind:
+                name = self.data_lines[idx, i]
+                input_data = torch.load(os.path.join(self.train_path, name + '.pt'))
+                if 'trans_params' in input_data:
+                    input_data.pop('trans_params')
+                input_data = {k: v.to("cuda:0") for (k, v) in input_data.items()}
+
+                img_list.append(input_data['img'])
+                skin_mask_list.append(input_data['skin_mask'])
+                parse_mask_list.append(input_data['parse_mask'])
+                lmk_list.append(input_data['lm'])
+                M_list.append(input_data['M'])
+        else:
+            name = self.data_lines[idx][0]
+            input_data = torch.load(os.path.join(self.train_path, name + '.pt'))
+            if 'trans_params' in input_data:
+                input_data.pop('trans_params')
+            input_data = {k: v for (k, v) in input_data.items()}
+
+            img_list.append(input_data['img'])
+            skin_mask_list.append(input_data['skin_mask'])
+            parse_mask_list.append(input_data['parse_mask'])
+            lmk_list.append(input_data['lm'])
+            M_list.append(input_data['M'])
+
+        img_array = torch.from_numpy(np.array(img_list)).type(dtype=torch.float32)  # K,224,224,3
+        skin_mask_array = torch.from_numpy(np.array(skin_mask_list)).type(dtype=torch.float32)  
+        parse_mask_array = torch.from_numpy(np.array(parse_mask_list)).type(dtype=torch.float32)  
+        lmk_array = torch.from_numpy(np.array(lmk_list)).type(dtype=torch.float32) 
+        M_array = torch.from_numpy(np.array(M_list)).type(dtype=torch.float32)  # 待标记
+
+        if self.K==1:
+            img_array = img_array.squeeze()
+            skin_mask_array = skin_mask_array.squeeze()
+            parse_mask_array = parse_mask_array.squeeze()
+            lmk_array = lmk_array.squeeze()
+            M_array = M_array.squeeze()
+        
+        data_dict = {
+            'img': img_array,
+            'skin_mask': skin_mask_array,
+            'parse_mask': parse_mask_array,
+            'lmk': lmk_array,
+            'M': M_array
+        }
+        return data_dict

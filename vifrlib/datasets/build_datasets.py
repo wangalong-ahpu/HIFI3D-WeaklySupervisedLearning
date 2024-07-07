@@ -14,7 +14,7 @@ from .ethnicity import EthnicityDataset
 from .aflw2000 import AFLW2000, AFLW2000_T_Dataset
 from .lymh import LYMH_TrainDataset, LYMH_TestDataset
 from .facescape import Facescape_TrainDataset
-from .small_facescape import SmallFacescapeDataset
+from .small_facescape import SmallFacescapeDataset, SmallFaceScape_TrainDataset
 from .now import NoWDataset
 from .vox import VoxelDataset
 
@@ -32,8 +32,7 @@ def build_train(cfg, is_train=True):
         data_list.append(Facescape_TrainDataset(K=config.K, image_size=config.image_size, scale=[config.scale_min, config.scale_max], trans_scale=config.trans_scale, \
                                                 isSingle=config.isSingle, kpt_num=cfg.loss.lmk_num, train_path=cfg.dataset.facescape_dir))
     if 'small_facescape' in config.training_data:
-        data_list.append(SmallFacescapeDataset(K=config.K, image_size=config.image_size, scale=[config.scale_min, config.scale_max], trans_scale=config.trans_scale, \
-                                                isSingle=config.isSingle, kpt_num=cfg.loss.lmk_num, train_path=cfg.dataset.small_facescape_dir))
+        data_list.append(SmallFaceScape_TrainDataset(K=config.K, train_path=cfg.dataset.sm_fs_dir))
     if 'lymh' in config.training_data:
         data_list.append(LYMH_TrainDataset(K=config.K, image_size=config.image_size, scale=[config.scale_min, config.scale_max], trans_scale=config.trans_scale,\
                                            isSingle=config.isSingle, kpt_num=cfg.loss.lmk_num, train_path=cfg.dataset.lymh_dir))

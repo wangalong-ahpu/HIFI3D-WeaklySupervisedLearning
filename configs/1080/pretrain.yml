@@ -1,9 +1,9 @@
-output_dir: "/media/wang/SSD_1/demo/VIFR_TR/pretrain/0617_resnet50_b8K1_68_1080"
+output_dir: "/media/wang/SSD_1/demo/VIFR_TR/pretrain/0707_resnet50_b8K1_68_1080"
 pretrained_modelpath: ''
 
 
 dataset:
-  training_data: ['small_facescape','facescape']
+  training_data: ['small_facescape']
   eval_data: [ 'aflw2000' ]
   batch_size: 8
   num_workers: 4
@@ -12,6 +12,7 @@ dataset:
   #数据集地址
   facescape_dir: "/media/wang/SSD_2/Datasets/FaceScape/fmview_train_new"
   small_facescape_dir: "/media/wang/SSD_2/Datasets/test_arcface"
+  sm_fs_dir: "/media/wang/SSD_1/Datasets/sm_fs"
   vggface2_dir: "/media/wang/SSD_2/Datasets/vggface2_new"
   lymh_dir: "/media/wang/SSD_2/Datasets/LYMH"
   aflw2000_dir: "/media/wang/SSD_2/Datasets/AFLW2000/image/2"

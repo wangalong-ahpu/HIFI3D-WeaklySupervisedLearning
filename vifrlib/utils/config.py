@@ -37,6 +37,7 @@ cfg.dataset.scale_max = 1.8
 cfg.dataset.trans_scale = 0.
 cfg.dataset.facescape_dir = "/media/c723/SSD_1/Datasets/FaceScape/fmview_train"
 cfg.dataset.small_facescape_dir = "/media/c723/SSD_1/Datasets/FaceScape/small_facescape"
+cfg.dataset.sm_fs_dir = "/media/wang/SSD_1/Datasets/sm_fs"
 cfg.dataset.vggface2_dir = "/media/c723/SSD_1/Datasets/vggface2"
 cfg.dataset.lymh_dir = "/media/c723/SSD_1/Datasets/LYMH/image/1"
 cfg.dataset.aflw2000_dir = "/media/c723/SSD_1/Datasets/aflw2000/image/1"
