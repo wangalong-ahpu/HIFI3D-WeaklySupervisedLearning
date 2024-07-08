@@ -7,8 +7,8 @@ dataset:
   eval_data: [ 'aflw2000' ]
   batch_size: 8
   num_workers: 4
-  K: 1 #注意修改<数据集文件夹>
-  isSingle: True
+  K: 16 #注意修改<数据集文件夹>
+  isSingle: False
   #数据集地址
   facescape_dir: "/media/wang/SSD_2/Datasets/FaceScape/fmview_train_new"
   small_facescape_dir: "/media/wang/SSD_2/Datasets/test_arcface"

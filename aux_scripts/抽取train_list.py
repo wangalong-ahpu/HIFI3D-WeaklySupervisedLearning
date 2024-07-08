@@ -43,7 +43,7 @@ if __name__ == '__main__':
     datasets_path_list = ["/media/wang/SSD_1/Datasets/sm_fs"]
     #"/media/wang/SSD_2/Datasets/FaceScape/fmview_train_new", "/media/wang/SSD_2/Datasets/FaceScape/small_facescape_new","/media/wang/SSD_2/Datasets/vggface2_new",
     
-    K = 16 # 抽取一个个体的图片数
+    K = 10 # 抽取一个个体的图片数
     for dataset_folder in datasets_path_list:
         output_file = os.path.join(dataset_folder, f'train_list_k{K}.npy')
         extract_single_filenames(dataset_folder, output_file) if K==1 else extract_K_filenames(dataset_folder, output_file, K)

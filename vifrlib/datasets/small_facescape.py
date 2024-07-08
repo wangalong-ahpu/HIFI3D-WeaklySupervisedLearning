@@ -197,7 +197,7 @@ class SmallFaceScape_TrainDataset(Dataset):
                 input_data = torch.load(os.path.join(self.train_path, name + '.pt'))
                 if 'trans_params' in input_data:
                     input_data.pop('trans_params')
-                input_data = {k: v.to("cuda:0") for (k, v) in input_data.items()}
+                input_data = {k: v.squeeze() for (k, v) in input_data.items()}
 
                 img_list.append(input_data['img'])
                 skin_mask_list.append(input_data['skin_mask'])
@@ -209,7 +209,7 @@ class SmallFaceScape_TrainDataset(Dataset):
             input_data = torch.load(os.path.join(self.train_path, name + '.pt'))
             if 'trans_params' in input_data:
                 input_data.pop('trans_params')
-            input_data = {k: v for (k, v) in input_data.items()}
+            input_data = {k: v.squeeze() for (k, v) in input_data.items()}
 
             img_list.append(input_data['img'])
             skin_mask_list.append(input_data['skin_mask'])
@@ -217,18 +217,26 @@ class SmallFaceScape_TrainDataset(Dataset):
             lmk_list.append(input_data['lm'])
             M_list.append(input_data['M'])
 
-        img_array = torch.from_numpy(np.array(img_list)).type(dtype=torch.float32)  # K,224,224,3
-        skin_mask_array = torch.from_numpy(np.array(skin_mask_list)).type(dtype=torch.float32)  
-        parse_mask_array = torch.from_numpy(np.array(parse_mask_list)).type(dtype=torch.float32)  
-        lmk_array = torch.from_numpy(np.array(lmk_list)).type(dtype=torch.float32) 
-        M_array = torch.from_numpy(np.array(M_list)).type(dtype=torch.float32)  # 待标记
+        # img_array = torch.from_numpy(np.array(img_list)).type(dtype=torch.float32)  # K,224,224,3
+            
+        img_array = torch.stack(img_list, dim=0)  # K, 224, 224, 3
+        skin_mask_array = torch.stack(skin_mask_list, dim=0)
+        parse_mask_array = torch.stack(parse_mask_list, dim=0)
+        lmk_array = torch.stack(lmk_list, dim=0)
+        M_array = torch.stack(M_list, dim=0)
+
+        # img_array = np.array(img_list)
+        # skin_mask_array = np.array(skin_mask_list)
+        # parse_mask_array = np.array(parse_mask_list)
+        # lmk_array = np.array(lmk_list)
+        # M_array = np.array(M_list)
 
         if self.K==1:
-            img_array = img_array.squeeze()
-            skin_mask_array = skin_mask_array.squeeze()
-            parse_mask_array = parse_mask_array.squeeze()
-            lmk_array = lmk_array.squeeze()
-            M_array = M_array.squeeze()
+            img_array = img_array.squeeze(0)
+            skin_mask_array = skin_mask_array.squeeze(0)
+            parse_mask_array = parse_mask_array.squeeze(0)
+            lmk_array = lmk_array.squeeze(0)
+            M_array = M_array.squeeze(0)
         
         data_dict = {
             'img': img_array,
@@ -237,4 +245,5 @@ class SmallFaceScape_TrainDataset(Dataset):
             'lmk': lmk_array,
             'M': M_array
         }
+
         return data_dict
