@@ -20,8 +20,13 @@ from .models.encoders import ResnetEncoder
 # from .models.FLAME import FLAME, FLAMETex
 from .models.decoders import Generator
 from .models.stylegan2 import dnnlib
+from .models.recog import define_net_recog
+
 from .utils import util
 from .utils.rotation_converter import batch_euler2axis
+from .utils.preprocess_utils import estimate_norm_torch
+from .utils.data_utils import tensor2np, draw_mask, draw_landmarks, img3channel
+
 from .datasets import datasets
 from .utils.config import cfg
 torch.backends.cudnn.benchmark = True
@@ -218,10 +223,18 @@ class Trainer(object):
 
         # vifr model
         self.vifr = model.to(self.device)
+
+        # the recognition model
+        self.net_recog = define_net_recog(net_recog=self.net_recog, pretrained_path=self.net_recog_path)
+        self.net_recog = self.net_recog.eval().requires_grad_(False)
+        self.net_recog.to(self.device)
+
         # the vgg model
         with dnnlib.util.open_url(self.vgg_model_path) as f:
             self.net_vgg = torch.jit.load(f).eval()
+            self.net_vgg.to(self.device)
             self.net_vgg.eval()
+        
         # 设置优化器
         self.opt = torch.optim.Adam(self.vifr.E_hifi3d.parameters(),lr=self.cfg.train.lr,amsgrad=False)
         # self.configure_optimizers()
@@ -239,7 +252,7 @@ class Trainer(object):
         if self.cfg.train.write_summary:
             from torch.utils.tensorboard import SummaryWriter
             self.writer = SummaryWriter(log_dir=os.path.join(self.cfg.output_dir, self.cfg.train.log_dir))
-    
+
     # def configure_optimizers(self):
 
     #     if self.train_arcface_other_params:
@@ -338,9 +351,11 @@ class Trainer(object):
         
         # ------------------------------------------计算各Loss
         losses = {}
-        if self.cfg.loss.photo > 0.:# 光度损失
+        # 光度损失
+        if self.cfg.loss.photo > 0.:
             loss_face_mask = opdict['render_face_mask'] * parse_mask * skin_mask
             losses['photometric_texture'] = (lossfunc_new.photo_loss(opdict['pred_face_img'],opdict['image'],loss_face_mask)) * self.cfg.loss.photo
+        
         # 关键点损失
         losses['landmark'] = (lossfunc_new.landmark_loss(opdict['pred_lmk'],opdict['gt_lmk'])) * self.cfg.loss.lmk # 待优化权重
         ## 嘴唇关键点距离损失
@@ -348,13 +363,34 @@ class Trainer(object):
         ## 眼皮关键点距离损失
         losses['eye_distance'] = 0
         
-        # 身份损失
-        losses['identity'] = (lossfunc_new.landmark_loss(opdict['pred_lmk'],opdict['gt_lmk'])) * self.cfg.loss.vgg # 待优化权重
+        # 身份损失# id feature loss
+        if self.cfg.loss.id > 0. :
+            assert self.net_recog.training == False
+            if opdict['pred_lmk'].shape[1] == 68:
+                pred_trans_m = estimate_norm_torch(opdict['pred_lmk'], opdict['image'].shape[-2])
+            else:
+                pred_trans_m = gt_M
+            with torch.no_grad():
+                gt_feat = self.net_recog(opdict['image'], gt_M)
+                pred_feat = self.net_recog(opdict['render_face'], pred_trans_m)
+            losses['identity'] = (lossfunc_new.perceptual_loss(pred_feat, gt_feat)) * self.cfg.loss.id
+
+        # vgg损失
+        if self.cfg.loss.vgg > 0. :
+            loss_face_mask = opdict['render_face_mask'] * parse_mask
+            render_face_vgg = opdict['render_face'] * loss_face_mask
+            input_face_vgg = opdict['image'] * loss_face_mask
+            losses['vgg'] = (lossfunc_new.vgg_loss(render_face_vgg, input_face_vgg, self.net_vgg)) * self.cfg.loss.vgg
+
         # 正则化损失
-        losses['id_reg'] = (torch.sum(codedict['id']**2)/2)*self.cfg.loss.reg_id
-        losses['exp_reg'] = (torch.sum(codedict['exp']**2)/2)*self.cfg.loss.reg_exp
-        losses['tex_reg'] = (torch.sum(codedict['tex']**2)/2)*self.cfg.loss.reg_tex
-        losses['gamma_reg'] = ((torch.mean(codedict['gamma'], dim=2)[:,:,None] - codedict['gamma'])**2).mean()*self.cfg.loss.reg_gamma
+        losses['id_reg'], losses['exp_reg'], losses['tex_reg'], losses['gamma_reg'] = lossfunc_new.coeffs_reg_loss(codedict)        
+        losses['id_reg'] = losses['id_reg']*self.cfg.loss.reg_id
+        losses['exp_reg'] = losses['exp_reg']*self.cfg.loss.reg_exp
+        losses['tex_reg'] = losses['tex_reg']*self.cfg.loss.reg_tex
+        losses['gamma_reg'] = losses['gamma_reg']*self.cfg.loss.reg_gamma
+        # losses['exp_reg'] = (torch.sum(codedict['exp']**2)/2)*self.cfg.loss.reg_exp
+        # losses['tex_reg'] = (torch.sum(codedict['tex']**2)/2)*self.cfg.loss.reg_tex
+        # losses['gamma_reg'] = ((torch.mean(codedict['gamma'], dim=2)[:,:,None] - codedict['gamma'])**2).mean()*self.cfg.loss.reg_gamma
         # 总损失
         all_loss = 0.
         losses_key = losses.keys()

@@ -1,4 +1,4 @@
-output_dir: "/media/wang/SSD_1/demo/VIFR_TR/pretrain/0708_resnet50_b8K1_68_1080"
+output_dir: "/media/wang/SSD_1/demo/VIFR_TR/pretrain/0708_resnet50_b8K1_68_1080(2)"
 pretrained_modelpath: ''
 
 
@@ -18,8 +18,9 @@ dataset:
   aflw2000_dir: "/media/wang/SSD_1/Datasets/AFLW2000/image/2"
 
 loss:
-  photo: 0.2
-  id: 0.
+  photo: 0.5
+  id: 0.08
+  vgg: 0.
   useSeg: False
   shape_consistency: False
   detail_consistency: False
@@ -38,7 +39,7 @@ loss:
 train:
   resume: True
   lr: 2e-4 #5e-4
-  max_epochs: 30
+  max_epochs: 50
   max_steps: 10000000
   log_steps: 200
   vis_steps: 50

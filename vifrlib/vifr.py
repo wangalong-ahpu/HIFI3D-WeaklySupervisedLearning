@@ -663,7 +663,7 @@ class VIFR(nn.Module):
         #     'arcface': self.MICA_arcface.state_dict()
         # }
         return {
-                'E_flame': self.E_hifi3d.state_dict(),
+                'E_hifi3d': self.E_hifi3d.state_dict(),
                 # 'E_detail': self.E_detail.state_dict(),
                 # 'D_detail': self.D_detail.state_dict()
             }

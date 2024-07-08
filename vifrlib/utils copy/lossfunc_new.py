@@ -232,15 +232,6 @@ def coeffs_reg_loss(coeffs_dict):
         loss_reg_gamma = 0.
 
     return loss_reg_id, loss_reg_exp, loss_reg_tex, loss_reg_gamma
-
-def perceptual_loss(id_featureA, id_featureB):
-    '''
-    Recognition id feature level loss.
-    Args:
-        id_featureA, id_featureB: torch.Tensor, (B, -1).
-    '''
-    cosine_d = torch.sum(id_featureA * id_featureB, dim=-1)
-    return torch.sum(1 - cosine_d) / cosine_d.shape[0]
 # ====================================================================================================
 
 def eye_dis(landmarks):

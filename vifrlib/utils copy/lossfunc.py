@@ -9,11 +9,12 @@ import cv2
 import torchfile
 from torch.autograd import Variable
 
-# from . import util
+from . import util
 
 
 def l2_distance(verts1, verts2):
-    return torch.sqrt(((verts1 - verts2)**2).sum(2)).mean(1).mean()
+    return torch.sqrt(((verts1 - verts2) ** 2).sum(2)).mean(1).mean()
+
 
 ### VAE
 def kl_loss(texcode):
@@ -23,11 +24,12 @@ def kl_loss(texcode):
     mu: latent mean
     logvar: latent log variance
     """
-    mu, logvar = texcode[:,:128], texcode[:,128:]
+    mu, logvar = texcode[:, :128], texcode[:, 128:]
     KLD_element = mu.pow(2).add_(logvar.exp()).mul_(-1).add_(1).add_(logvar)
     KLD = torch.sum(KLD_element).mul_(-0.5)
     # KL divergence
     return KLD
+
 
 ### ------------------------------------- Losses/Regularizations for shading
 # white shading
@@ -41,18 +43,20 @@ def shading_white_loss(shading):
     # rgb_diff = (shading[:,0] - shading[:,1])**2 + (shading[:,0] - shading[:,2])**2 + (shading[:,1] - shading[:,2])**2
     # rgb_diff = (shading[:,0].mean([1,2]) - shading[:,1].mean([1,2]))**2 + (shading[:,0].mean([1,2]) - shading[:,2].mean([1,2]))**2 + (shading[:,1].mean([1,2]) - shading[:,2].mean([1,2]))**2
     # rgb_diff = (shading.mean([2, 3]) - torch.ones((shading.shape[0], 3)).float().cuda())**2
-    rgb_diff = (shading.mean([0, 2, 3]) - 0.99)**2
+    rgb_diff = (shading.mean([0, 2, 3]) - 0.99) ** 2
     return rgb_diff.mean()
+
 
 def shading_smooth_loss(shading):
     '''
     assume: shading should be smooth
     ref: Lifting AutoEncoders: Unsupervised Learning of a Fully-Disentangled 3D Morphable Model using Deep Non-Rigid Structure from Motion
     '''
-    dx = shading[:,:,1:-1,1:] - shading[:,:,1:-1,:-1]
-    dy = shading[:,:,1:,1:-1] - shading[:,:,:-1,1:-1]
-    gradient_image = (dx**2).mean() + (dy**2).mean()
+    dx = shading[:, :, 1:-1, 1:] - shading[:, :, 1:-1, :-1]
+    dy = shading[:, :, 1:, 1:-1] - shading[:, :, :-1, 1:-1]
+    gradient_image = (dx ** 2).mean() + (dy ** 2).mean()
     return gradient_image.mean()
+
 
 ### ------------------------------------- Losses/Regularizations for albedo
 # texture_300W_labels_chromaticity = (texture_300W_labels + 1.0)/2.0
@@ -62,29 +66,30 @@ def shading_smooth_loss(shading):
 # w_u = tf.stop_gradient(tf.exp(-15*tf.norm( texture_300W_labels_chromaticity[:, :-1, :, :] - texture_300W_labels_chromaticity[:, 1:, :, :], ord='euclidean', axis=-1, keep_dims=True)) * texture_vis_mask[:, :-1, :, :] )
 # G_loss_local_albedo_const_u = tf.reduce_mean(norm_loss( albedo_300W[:, :-1, :, :], albedo_300W[:, 1:, :, :], loss_type = 'l2,1', reduce_mean=False, p=0.8) * w_u) / tf.reduce_sum(w_u+1e-6)
 
-    
+
 # w_v = tf.stop_gradient(tf.exp(-15*tf.norm( texture_300W_labels_chromaticity[:, :, :-1, :] - texture_300W_labels_chromaticity[:, :, 1:, :], ord='euclidean', axis=-1, keep_dims=True)) * texture_vis_mask[:, :, :-1, :] )
 # G_loss_local_albedo_const_v = tf.reduce_mean(norm_loss( albedo_300W[:, :, :-1, :], albedo_300W[:, :, 1:, :],  loss_type = 'l2,1', reduce_mean=False, p=0.8) * w_v) / tf.reduce_sum(w_v+1e-6)
 
 # G_loss_local_albedo_const = (G_loss_local_albedo_const_u + G_loss_local_albedo_const_v)*10
 
-def albedo_constancy_loss(albedo, alpha = 15, weight = 1.):
+def albedo_constancy_loss(albedo, alpha=15, weight=1.):
     '''
     for similarity of neighbors
     ref: Self-supervised Multi-level Face Model Learning for Monocular Reconstruction at over 250 Hz
         Towards High-fidelity Nonlinear 3D Face Morphable Model
     '''
-    albedo_chromaticity = albedo/(torch.sum(albedo, dim=1, keepdim=True) + 1e-6)
-    weight_x = torch.exp(-alpha*(albedo_chromaticity[:,:,1:,:] - albedo_chromaticity[:,:,:-1,:])**2).detach()
-    weight_y = torch.exp(-alpha*(albedo_chromaticity[:,:,:,1:] - albedo_chromaticity[:,:,:,:-1])**2).detach()
-    albedo_const_loss_x = ((albedo[:,:,1:,:] - albedo[:,:,:-1,:])**2)*weight_x
-    albedo_const_loss_y = ((albedo[:,:,:,1:] - albedo[:,:,:,:-1])**2)*weight_y
-    
+    albedo_chromaticity = albedo / (torch.sum(albedo, dim=1, keepdim=True) + 1e-6)
+    weight_x = torch.exp(-alpha * (albedo_chromaticity[:, :, 1:, :] - albedo_chromaticity[:, :, :-1, :]) ** 2).detach()
+    weight_y = torch.exp(-alpha * (albedo_chromaticity[:, :, :, 1:] - albedo_chromaticity[:, :, :, :-1]) ** 2).detach()
+    albedo_const_loss_x = ((albedo[:, :, 1:, :] - albedo[:, :, :-1, :]) ** 2) * weight_x
+    albedo_const_loss_y = ((albedo[:, :, :, 1:] - albedo[:, :, :, :-1]) ** 2) * weight_y
+
     albedo_constancy_loss = albedo_const_loss_x.mean() + albedo_const_loss_y.mean()
-    return albedo_constancy_loss*weight
+    return albedo_constancy_loss * weight
+
 
 def albedo_ring_loss(texcode, ring_elements, margin, weight=1.):
-        """
+    """
             computes ring loss for ring_outputs before FLAME decoder
             Inputs:
               ring_outputs = a list containing N streams of the ring; len(ring_outputs) = N
@@ -93,22 +98,23 @@ def albedo_ring_loss(texcode, ring_elements, margin, weight=1.):
               Each row of first N-1 strams are of the same subject and
               the Nth stream is the different subject
         """
-        tot_ring_loss = (texcode[0]-texcode[0]).sum()
-        diff_stream = texcode[-1]
-        count = 0.0
-        for i in range(ring_elements - 1):
-            for j in range(ring_elements - 1):
-                pd = (texcode[i] - texcode[j]).pow(2).sum(1)
-                nd = (texcode[i] - diff_stream).pow(2).sum(1)
-                tot_ring_loss = torch.add(tot_ring_loss,
-                                (torch.nn.functional.relu(margin + pd - nd).mean()))
-                count += 1.0
+    tot_ring_loss = (texcode[0] - texcode[0]).sum()
+    diff_stream = texcode[-1]
+    count = 0.0
+    for i in range(ring_elements - 1):
+        for j in range(ring_elements - 1):
+            pd = (texcode[i] - texcode[j]).pow(2).sum(1)
+            nd = (texcode[i] - diff_stream).pow(2).sum(1)
+            tot_ring_loss = torch.add(tot_ring_loss,
+                                      (torch.nn.functional.relu(margin + pd - nd).mean()))
+            count += 1.0
 
-        tot_ring_loss = (1.0/count) * tot_ring_loss
-        return tot_ring_loss * weight
+    tot_ring_loss = (1.0 / count) * tot_ring_loss
+    return tot_ring_loss * weight
+
 
 def albedo_same_loss(albedo, ring_elements, weight=1.):
-        """
+    """
             computes ring loss for ring_outputs before FLAME decoder
             Inputs:
               ring_outputs = a list containing N streams of the ring; len(ring_outputs) = N
@@ -117,13 +123,14 @@ def albedo_same_loss(albedo, ring_elements, weight=1.):
               Each row of first N-1 strams are of the same subject and
               the Nth stream is the different subject
         """
-        loss = 0
-        for i in range(ring_elements - 1):
-            for j in range(ring_elements - 1):
-                pd = (albedo[i] - albedo[j]).pow(2).mean()
-                loss += pd
-        loss = loss/ring_elements
-        return loss * weight
+    loss = 0
+    for i in range(ring_elements - 1):
+        for j in range(ring_elements - 1):
+            pd = (albedo[i] - albedo[j]).pow(2).mean()
+            loss += pd
+    loss = loss / ring_elements
+    return loss * weight
+
 
 ### ------------------------------------- Losses/Regularizations for vertices
 def batch_kp_2d_l1_loss(real_2d_kp, predicted_2d_kp, weights=None):
@@ -134,7 +141,7 @@ def batch_kp_2d_l1_loss(real_2d_kp, predicted_2d_kp, weights=None):
     kp_pred: N x K x 2
     """
     if weights is not None:
-        real_2d_kp[:,:,2] = weights[None,:]*real_2d_kp[:,:,2]
+        real_2d_kp[:, :, 2] = weights[None, :] * real_2d_kp[:, :, 2]
     kp_gt = real_2d_kp.view(-1, 3)
     kp_pred = predicted_2d_kp.contiguous().view(-1, 2)
     vis = kp_gt[:, 2]
@@ -142,114 +149,27 @@ def batch_kp_2d_l1_loss(real_2d_kp, predicted_2d_kp, weights=None):
     dif_abs = torch.abs(kp_gt[:, :2] - kp_pred).sum(1)
     return torch.matmul(dif_abs, vis) * 1.0 / k
 
-# def landmark_loss(predicted_landmarks, landmarks_gt, weight=1.): # 原albedogan &deca
-#     # (predicted_theta, predicted_verts, predicted_landmarks) = ringnet_outputs[-1]
-#     if torch.is_tensor(landmarks_gt) is not True:
-#         real_2d = torch.cat(landmarks_gt).cuda()
-#     else:
-#         real_2d = torch.cat([landmarks_gt, torch.ones((landmarks_gt.shape[0], 68, 1)).cuda()], dim=-1)
-#     # real_2d = torch.cat(landmarks_gt).cuda()
 
-#     loss_lmk_2d = batch_kp_2d_l1_loss(real_2d, predicted_landmarks)
-#     return loss_lmk_2d * weight
- 
-# ====================================================================================================FFHQ-UV
-def landmark_loss(predict_lm, gt_lm, weight=None):
-    '''
-    Weighted mse loss on 68/86 landmarks.
-    Args:
-        predict_lm, gt_lm: torch.Tensor, (B, 68/86, 2).
-        weight: torch.Tensor, (1, 68/86).
-    '''
-    n_lmk = predict_lm.shape[1]
-    assert gt_lm.shape[1] == n_lmk
-    if not weight:
-        if n_lmk == 68:
-            weight = np.ones([68])
-            weight[28:31] = 20
-            weight[-8:] = 20
-        elif n_lmk == 86:
-            weight = np.ones([86])
-        weight = np.expand_dims(weight, 0)
-        weight = torch.tensor(weight).to(predict_lm.device)
-    loss = torch.sum((predict_lm - gt_lm)**2, dim=-1) * weight
-    loss = torch.sum(loss) / (predict_lm.shape[0] * predict_lm.shape[1])
-    return loss
-
-def photo_loss(imageA, imageB, mask):
-    '''
-    Image level loss with a mask.
-    L1 norm.
-    Args:
-        imageA, imageB: torch.Tensor, (B, 3, H, W).
-        mask: torch.Tensor, (B, 1, H, W).
-    '''
-    imageA = imageA * mask
-    imageB = imageB * mask
-    loss = F.l1_loss(imageA, imageB, reduction='sum') / torch.max(torch.sum(mask), torch.tensor(1.0).to(mask.device))
-    return loss
-
-def vgg_loss(image_A, image_B, vgg_model):
-    '''
-    Vgg Loss, L2 norm.
-    Args:
-        imageA: torch.Tensor, (B, 3, H, W).
-        image_B_features: torch.Tensor, (B, -1), the feature of target image_B.
-        vgg_model: the vgg model.
-    '''
-    if image_A.shape[2] > 256:
-        image_A = F.interpolate(image_A, size=(256, 256), mode='area')
-    if image_B.shape[2] > 256:
-        image_B = F.interpolate(image_B, size=(256, 256), mode='area')
-    image_A = image_A * 255.
-    image_B = image_B * 255.
-    # print(f"image_A:{torch.max(image_A)}\timage_B:{torch.max(image_B)}")
-    image_A_features = vgg_model(image_A, resize_images=False, return_lpips=True)
-    image_B_features = vgg_model(image_B, resize_images=False, return_lpips=True)
-    dist = (image_A_features - image_B_features).square().sum()
-    return dist
-
-def coeffs_reg_loss(coeffs_dict):
-    '''
-    coeffs regulization
-    l2 norm without the sqrt, from yu's implementation (mse)
-    tf.nn.l2_loss https://www.tensorflow.org/api_docs/python/tf/nn/l2_loss
-    Args:
-        coeffs_dict: a dict of torch.Tensors, keys: id, exp, tex, gamma.
-    '''
-    # coefficient regularization to ensure plausible 3d faces
-    bs = coeffs_dict['id'].shape[0]
-    loss_reg_id = torch.sum(coeffs_dict['id']**2) / bs
-    loss_reg_exp = torch.sum(coeffs_dict['exp']**2) / bs
-    loss_reg_tex = torch.sum(coeffs_dict['tex']**2) / bs
-
-    # gamma regularization to ensure a nearly-monochromatic light
-    if coeffs_dict['gamma'].size()[1] == 27:
-        gamma = coeffs_dict['gamma'].reshape([-1, 3, 9])
-        gamma_mean = torch.mean(gamma, dim=1, keepdims=True)
-        loss_reg_gamma = torch.mean((gamma - gamma_mean) ** 2)
+def landmark_loss(predicted_landmarks, landmarks_gt, weight=1.):
+    # (predicted_theta, predicted_verts, predicted_landmarks) = ringnet_outputs[-1]
+    if torch.is_tensor(landmarks_gt) is not True:
+        real_2d = torch.cat(landmarks_gt).cuda()
     else:
-        loss_reg_gamma = 0.
+        real_2d = torch.cat([landmarks_gt, torch.ones((landmarks_gt.shape[0], 68, 1)).cuda()], dim=-1)
+    # real_2d = torch.cat(landmarks_gt).cuda()
 
-    return loss_reg_id, loss_reg_exp, loss_reg_tex, loss_reg_gamma
+    loss_lmk_2d = batch_kp_2d_l1_loss(real_2d, predicted_landmarks)
+    return loss_lmk_2d * weight
 
-def perceptual_loss(id_featureA, id_featureB):
-    '''
-    Recognition id feature level loss.
-    Args:
-        id_featureA, id_featureB: torch.Tensor, (B, -1).
-    '''
-    cosine_d = torch.sum(id_featureA * id_featureB, dim=-1)
-    return torch.sum(1 - cosine_d) / cosine_d.shape[0]
-# ====================================================================================================
 
 def eye_dis(landmarks):
     # left eye:  [38,42], [39,41] - 1
     # right eye: [44,48], [45,47] -1
-    eye_up = landmarks[:,[37, 38, 43, 44], :]
-    eye_bottom = landmarks[:,[41, 40, 47, 46], :]
-    dis = torch.sqrt(((eye_up - eye_bottom)**2).sum(2)) #[bz, 4]
+    eye_up = landmarks[:, [37, 38, 43, 44], :]
+    eye_bottom = landmarks[:, [41, 40, 47, 46], :]
+    dis = torch.sqrt(((eye_up - eye_bottom) ** 2).sum(2))  # [bz, 4]
     return dis
+
 
 def eye_dis_191(landmarks):
     # left eye:  [38,42], [39,41] - 1
@@ -260,8 +180,9 @@ def eye_dis_191(landmarks):
     eye_up = landmarks[:, [73, 74, 75, 97, 96, 95], :]
     eye_bottom = landmarks[:, [63, 62, 61, 84, 85, 86], :]
 
-    dis = torch.sqrt(((eye_up - eye_bottom)**2).sum(2)) #[bz, 4]
+    dis = torch.sqrt(((eye_up - eye_bottom) ** 2).sum(2))  # [bz, 4]
     return dis
+
 
 def eye_dis_235(landmarks):
     # left eye:  [38,42], [39,41] - 1
@@ -272,49 +193,54 @@ def eye_dis_235(landmarks):
     eye_up = landmarks[:, [73, 74, 75, 97, 96, 95], :]
     eye_bottom = landmarks[:, [63, 62, 61, 84, 85, 86], :]
 
-    dis = torch.sqrt(((eye_up - eye_bottom)**2).sum(2)) #[bz, 4]
+    dis = torch.sqrt(((eye_up - eye_bottom) ** 2).sum(2))  # [bz, 4]
     return dis
+
 
 def eyed_loss(predicted_landmarks, landmarks_gt, weight=1.):
     if torch.is_tensor(landmarks_gt) is not True:
         real_2d = torch.cat(landmarks_gt).cuda()
     else:
         real_2d = torch.cat([landmarks_gt, torch.ones((landmarks_gt.shape[0], 68, 1)).cuda()], dim=-1)
-    pred_eyed = eye_dis(predicted_landmarks[:,:,:2])
-    gt_eyed = eye_dis(real_2d[:,:,:2])
+    pred_eyed = eye_dis(predicted_landmarks[:, :, :2])
+    gt_eyed = eye_dis(real_2d[:, :, :2])
 
     loss = (pred_eyed - gt_eyed).abs().mean()
     return loss
+
 
 def eyed_loss_191(predicted_landmarks, landmarks_gt, weight=1.):
     if torch.is_tensor(landmarks_gt) is not True:
         real_2d = torch.cat(landmarks_gt).cuda()
     else:
         real_2d = torch.cat([landmarks_gt, torch.ones((landmarks_gt.shape[0], 191, 1)).cuda()], dim=-1)
-    pred_eyed = eye_dis_191(predicted_landmarks[:,:,:2])
-    gt_eyed = eye_dis_191(real_2d[:,:,:2])
+    pred_eyed = eye_dis_191(predicted_landmarks[:, :, :2])
+    gt_eyed = eye_dis_191(real_2d[:, :, :2])
 
     loss = (pred_eyed - gt_eyed).abs().mean()
     return loss
+
 
 def eyed_loss_235(predicted_landmarks, landmarks_gt, weight=1.):
     if torch.is_tensor(landmarks_gt) is not True:
         real_2d = torch.cat(landmarks_gt).cuda()
     else:
         real_2d = torch.cat([landmarks_gt, torch.ones((landmarks_gt.shape[0], 235, 1)).cuda()], dim=-1)
-    pred_eyed = eye_dis_235(predicted_landmarks[:,:,:2])
-    gt_eyed = eye_dis_235(real_2d[:,:,:2])
+    pred_eyed = eye_dis_235(predicted_landmarks[:, :, :2])
+    gt_eyed = eye_dis_235(real_2d[:, :, :2])
 
     loss = (pred_eyed - gt_eyed).abs().mean()
     return loss
 
+
 def lip_dis(landmarks):
     # up inner lip:  [62, 63, 64] - 1
     # down innder lip: [68, 67, 66] -1
-    lip_up = landmarks[:,[61, 62, 63], :]
-    lip_down = landmarks[:,[67, 66, 65], :]
-    dis = torch.sqrt(((lip_up - lip_down)**2).sum(2)) #[bz, 4]
+    lip_up = landmarks[:, [61, 62, 63], :]
+    lip_down = landmarks[:, [67, 66, 65], :]
+    dis = torch.sqrt(((lip_up - lip_down) ** 2).sum(2))  # [bz, 4]
     return dis
+
 
 def lip_dis_191(landmarks):
     # up inner lip:  [62, 63, 64] - 1
@@ -323,8 +249,9 @@ def lip_dis_191(landmarks):
     # lip_down = landmarks[:,[67, 66, 65], :]
     lip_up = landmarks[:, [112, 113, 114, 115, 116], :]
     lip_down = landmarks[:, [136, 137, 138, 139, 140], :]
-    dis = torch.sqrt(((lip_up - lip_down)**2).sum(2)) #[bz, 4]
+    dis = torch.sqrt(((lip_up - lip_down) ** 2).sum(2))  # [bz, 4]
     return dis
+
 
 def lip_dis_235(landmarks):
     # up inner lip:  [62, 63, 64] - 1
@@ -333,19 +260,21 @@ def lip_dis_235(landmarks):
     # lip_down = landmarks[:,[67, 66, 65], :]
     lip_up = landmarks[:, [112, 113, 114, 115, 116], :]
     lip_down = landmarks[:, [136, 137, 138, 139, 140], :]
-    dis = torch.sqrt(((lip_up - lip_down)**2).sum(2)) #[bz, 4]
+    dis = torch.sqrt(((lip_up - lip_down) ** 2).sum(2))  # [bz, 4]
     return dis
+
 
 def lipd_loss(predicted_landmarks, landmarks_gt, weight=1.):
     if torch.is_tensor(landmarks_gt) is not True:
         real_2d = torch.cat(landmarks_gt).cuda()
     else:
         real_2d = torch.cat([landmarks_gt, torch.ones((landmarks_gt.shape[0], 68, 1)).cuda()], dim=-1)
-    pred_lipd = lip_dis(predicted_landmarks[:,:,:2])
-    gt_lipd = lip_dis(real_2d[:,:,:2])
+    pred_lipd = lip_dis(predicted_landmarks[:, :, :2])
+    gt_lipd = lip_dis(real_2d[:, :, :2])
 
     loss = (pred_lipd - gt_lipd).abs().mean()
     return loss
+
 
 def lipd_loss_191(predicted_landmarks, landmarks_gt, weight=1.):
     if torch.is_tensor(landmarks_gt) is not True:
@@ -358,6 +287,7 @@ def lipd_loss_191(predicted_landmarks, landmarks_gt, weight=1.):
     loss = (pred_lipd - gt_lipd).abs().mean()
     return loss
 
+
 def lipd_loss_235(predicted_landmarks, landmarks_gt, weight=1.):
     if torch.is_tensor(landmarks_gt) is not True:
         real_2d = torch.cat(landmarks_gt).cuda()
@@ -369,35 +299,9 @@ def lipd_loss_235(predicted_landmarks, landmarks_gt, weight=1.):
     loss = (pred_lipd - gt_lipd).abs().mean()
     return loss
 
-def batch_mouthkpt_2d_kc_loss(real_2d_kp, predicted_2d_kp, sigma=1.0,
-                              weights=None): 
-    D = predicted_2d_kp.shape[-1]  # 2
-    norm2 = torch.sum((real_2d_kp.unsqueeze(2) - predicted_2d_kp.unsqueeze(1)) ** 2, dim=-1)  # (bs,20,20)
-    if weights is not None:
-        weighted_norm2 = norm2 * weights.unsqueeze(0).unsqueeze(0)  # (bs,20,20)
-    else:
-        weighted_norm2 = norm2
-
-    gaussian_sum = torch.sum((1 / (np.sqrt(2 * np.pi) * sigma) ** D) * torch.exp(-weighted_norm2 / (2 * sigma ** 2)),
-                             dim=(1, 2))    # (bs,) 
-    return gaussian_sum
-
-def mouth_kc_loss(predicted_landmarks, landmarks_gt, sigma=1.0, useWKC=True):
-    real_2d = landmarks_gt
-    weights = torch.ones((20,)).cuda()
-    if useWKC:
-        weights = torch.tensor([1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.0, 1.0, 1.0, 1.0, 1.0, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1],dtype=torch.float32).cuda()
-    KC = torch.sum(batch_mouthkpt_2d_kc_loss(real_2d[:, :, :2], predicted_landmarks[:, :, :2], sigma, weights))
-    SS_KC = torch.sum(batch_mouthkpt_2d_kc_loss(real_2d[:, :, :2], real_2d[:, :, :2], sigma, weights))  # 常量
-    # SS_KC1 = (1 / (np.sqrt(2 * np.pi) * sigma) ** real_2d.shape[-1])*real_2d.shape[0]
-    # print(f"same:{True if SS_KC==SS_KC1 else False}")
-    # print(f"SS_KC:{SS_KC}\tSS_KC1:{SS_KC1}")
-    kc_loss = (-KC + SS_KC) / SS_KC
-    # kc_loss = -KC
-    return kc_loss
 
 def weighted_landmark_68_loss(predicted_landmarks, landmarks_gt, weight=1.):
-    #smaller inner landmark weights
+    # smaller inner landmark weights
     # (predicted_theta, predicted_verts, predicted_landmarks) = ringnet_outputs[-1]
     # import ipdb; ipdb.set_trace()
     real_2d = landmarks_gt
@@ -418,8 +322,35 @@ def weighted_landmark_68_loss(predicted_landmarks, landmarks_gt, weight=1.):
     loss_lmk_2d = batch_kp_2d_l1_loss(real_2d, predicted_landmarks, weights)
     return loss_lmk_2d * weight
 
-def weighted_landmark_191_loss(predicted_landmarks, landmarks_gt, weight=1.):
 
+def batch_mouthkpt_2d_kc_loss(real_2d_kp, predicted_2d_kp, sigma=1.0,
+                              weights=None):
+    D = predicted_2d_kp.shape[-1]  # 2
+    norm2 = torch.sum((real_2d_kp.unsqueeze(2) - predicted_2d_kp.unsqueeze(1)) ** 2, dim=-1)  # (bs,20,20)
+    if weights is not None:
+        weighted_norm2 = norm2 * weights.unsqueeze(0).unsqueeze(0)
+    else:
+        weighted_norm2 = norm2
+
+    gaussian_sum = torch.sum((1 / (np.sqrt(2 * np.pi) * sigma) ** D) * torch.exp(-weighted_norm2 / (2 * sigma ** 2)),
+                             dim=(1, 2))
+    return gaussian_sum
+
+
+def mouth_kc_loss(predicted_landmarks, landmarks_gt, sigma=1.0, useWKC=True):
+    real_2d = landmarks_gt
+    weights = torch.ones((20,)).cuda()
+    if useWKC:
+        weights = torch.tensor([1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.0, 1.0, 1.0, 1.0, 1.0, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1],dtype=torch.float32).cuda()
+    KC = torch.sum(batch_mouthkpt_2d_kc_loss(real_2d[:, :, :2], predicted_landmarks[:, :, :2], sigma, weights))
+    SS_KC = torch.sum(batch_mouthkpt_2d_kc_loss(real_2d[:, :, :2], real_2d[:, :, :2], sigma, weights))  # 常量
+
+    kc_loss = (-KC + SS_KC) / SS_KC
+
+    return kc_loss
+
+
+def weighted_landmark_191_loss(predicted_landmarks, landmarks_gt, weight=1.):
     real_2d = landmarks_gt
     weights = torch.ones((191,)).cuda()
 
@@ -445,8 +376,8 @@ def weighted_landmark_191_loss(predicted_landmarks, landmarks_gt, weight=1.):
     loss_lmk_2d = batch_kp_2d_l1_loss(real_2d, predicted_landmarks, weights)
     return loss_lmk_2d * weight
 
-def weighted_landmark_235_loss(predicted_landmarks, landmarks_gt, weight=1.):
 
+def weighted_landmark_235_loss(predicted_landmarks, landmarks_gt, weight=1.):
     real_2d = landmarks_gt
     weights = torch.ones((235,)).cuda()
 
@@ -472,6 +403,7 @@ def weighted_landmark_235_loss(predicted_landmarks, landmarks_gt, weight=1.):
     loss_lmk_2d = batch_kp_2d_l1_loss(real_2d, predicted_landmarks, weights)
     return loss_lmk_2d * weight
 
+
 def landmark_loss_tensor(predicted_landmarks, landmarks_gt, weight=1.):
     # (predicted_theta, predicted_verts, predicted_landmarks) = ringnet_outputs[-1]
     loss_lmk_2d = batch_kp_2d_l1_loss(landmarks_gt, predicted_landmarks)
@@ -488,7 +420,7 @@ def ring_loss(ring_outputs, ring_type, margin, weight=1.):
             Each row of first N-1 strams are of the same subject and
             the Nth stream is the different subject
         """
-    tot_ring_loss = (ring_outputs[0]-ring_outputs[0]).sum()
+    tot_ring_loss = (ring_outputs[0] - ring_outputs[0]).sum()
     if ring_type == '51':
         diff_stream = ring_outputs[-1]
         count = 0.0
@@ -497,48 +429,48 @@ def ring_loss(ring_outputs, ring_type, margin, weight=1.):
                 pd = (ring_outputs[i] - ring_outputs[j]).pow(2).sum(1)
                 nd = (ring_outputs[i] - diff_stream).pow(2).sum(1)
                 tot_ring_loss = torch.add(tot_ring_loss,
-                                (torch.nn.functional.relu(margin + pd - nd).mean()))
+                                          (torch.nn.functional.relu(margin + pd - nd).mean()))
                 count += 1.0
 
     elif ring_type == '33':
         perm_code = [(0, 1, 3),
-                    (0, 1, 4),
-                    (0, 1, 5),
-                    (0, 2, 3),
-                    (0, 2, 4),
-                    (0, 2, 5),
-                    (1, 0, 3),
-                    (1, 0, 4),
-                    (1, 0, 5),
-                    (1, 2, 3),
-                    (1, 2, 4),
-                    (1, 2, 5),
-                    (2, 0, 3),
-                    (2, 0, 4),
-                    (2, 0, 5),
-                    (2, 1, 3),
-                    (2, 1, 4),
-                    (2, 1, 5)]
+                     (0, 1, 4),
+                     (0, 1, 5),
+                     (0, 2, 3),
+                     (0, 2, 4),
+                     (0, 2, 5),
+                     (1, 0, 3),
+                     (1, 0, 4),
+                     (1, 0, 5),
+                     (1, 2, 3),
+                     (1, 2, 4),
+                     (1, 2, 5),
+                     (2, 0, 3),
+                     (2, 0, 4),
+                     (2, 0, 5),
+                     (2, 1, 3),
+                     (2, 1, 4),
+                     (2, 1, 5)]
         count = 0.0
         for i in perm_code:
             pd = (ring_outputs[i[0]] - ring_outputs[i[1]]).pow(2).sum(1)
             nd = (ring_outputs[i[1]] - ring_outputs[i[2]]).pow(2).sum(1)
             tot_ring_loss = torch.add(tot_ring_loss,
-                            (torch.nn.functional.relu(margin + pd - nd).mean()))
+                                      (torch.nn.functional.relu(margin + pd - nd).mean()))
             count += 1.0
 
-    tot_ring_loss = (1.0/count) * tot_ring_loss
+    tot_ring_loss = (1.0 / count) * tot_ring_loss
 
     return tot_ring_loss * weight
 
 
 ######################################## images/features/perceptual
 def gradient_dif_loss(prediction, gt):
-    prediction_diff_x =  prediction[:,:,1:-1,1:] - prediction[:,:,1:-1,:-1]
-    prediction_diff_y =  prediction[:,:,1:,1:-1] - prediction[:,:,1:,1:-1]
-    gt_x =  gt[:,:,1:-1,1:] - gt[:,:,1:-1,:-1]
-    gt_y =  gt[:,:,1:,1:-1] - gt[:,:,:-1,1:-1]
-    diff = torch.mean((prediction_diff_x-gt_x)**2) + torch.mean((prediction_diff_y-gt_y)**2)
+    prediction_diff_x = prediction[:, :, 1:-1, 1:] - prediction[:, :, 1:-1, :-1]
+    prediction_diff_y = prediction[:, :, 1:, 1:-1] - prediction[:, :, 1:, 1:-1]
+    gt_x = gt[:, :, 1:-1, 1:] - gt[:, :, 1:-1, :-1]
+    gt_y = gt[:, :, 1:, 1:-1] - gt[:, :, :-1, 1:-1]
+    diff = torch.mean((prediction_diff_x - gt_x) ** 2) + torch.mean((prediction_diff_y - gt_y) ** 2)
     return diff.mean()
 
 
@@ -580,6 +512,7 @@ def get_laplacian_kernel2d(kernel_size: int):
     kernel_2d: torch.Tensor = kernel
     return kernel_2d
 
+
 def laplacian_hq_loss(prediction, gt):
     # https://torchgeometry.readthedocs.io/en/latest/_modules/kornia/filters/laplacian.html
     b, c, h, w = prediction.shape
@@ -590,7 +523,7 @@ def laplacian_hq_loss(prediction, gt):
     lap_pre = F.conv2d(prediction, kernel, padding=padding, stride=1, groups=c)
     lap_gt = F.conv2d(gt, kernel, padding=padding, stride=1, groups=c)
 
-    return ((lap_pre - lap_gt)**2).mean()
+    return ((lap_pre - lap_gt) ** 2).mean()
 
 
 ## 
@@ -604,7 +537,7 @@ class VGG19FeatLayer(nn.Module):
     def forward(self, x):
         out = {}
         x = x - self.mean
-        x = x/self.std
+        x = x / self.std
         ci = 1
         ri = 0
         for layer in self.vgg19.children():
@@ -627,6 +560,7 @@ class VGG19FeatLayer(nn.Module):
             out[name] = x
         # print([x for x in out])
         return out
+
 
 class IDMRFLoss(nn.Module):
     def __init__(self, featlayer=VGG19FeatLayer):
@@ -660,7 +594,7 @@ class IDMRFLoss(nn.Module):
 
     def exp_norm_relative_dist(self, relative_dist):
         scaled_dist = relative_dist
-        dist_before_norm = torch.exp((self.bias - scaled_dist)/self.nn_stretch_sigma)
+        dist_before_norm = torch.exp((self.bias - scaled_dist) / self.nn_stretch_sigma)
         self.cs_NCHW = self.sum_normalize(dist_before_norm)
         return self.cs_NCHW
 
@@ -678,8 +612,8 @@ class IDMRFLoss(nn.Module):
         BatchSize = tar.size(0)
 
         for i in range(BatchSize):
-            tar_feat_i = tar_normalized[i:i+1, :, :, :]
-            gen_feat_i = gen_normalized[i:i+1, :, :, :]
+            tar_feat_i = tar_normalized[i:i + 1, :, :, :]
+            gen_feat_i = gen_normalized[i:i + 1, :, :, :]
             patches_OIHW = self.patch_extraction(tar_feat_i)
 
             cosine_dist_i = F.conv2d(gen_feat_i, patches_OIHW)
@@ -699,11 +633,13 @@ class IDMRFLoss(nn.Module):
         ## gen: [bz,3,h,w] rgb [0,1]
         gen_vgg_feats = self.featlayer(gen)
         tar_vgg_feats = self.featlayer(tar)
-        style_loss_list = [self.feat_style_layers[layer] * self.mrf_loss(gen_vgg_feats[layer], tar_vgg_feats[layer]) for layer in self.feat_style_layers]
-        self.style_loss = reduce(lambda x, y: x+y, style_loss_list) * self.lambda_style
+        style_loss_list = [self.feat_style_layers[layer] * self.mrf_loss(gen_vgg_feats[layer], tar_vgg_feats[layer]) for
+                           layer in self.feat_style_layers]
+        self.style_loss = reduce(lambda x, y: x + y, style_loss_list) * self.lambda_style
 
-        content_loss_list = [self.feat_content_layers[layer] * self.mrf_loss(gen_vgg_feats[layer], tar_vgg_feats[layer]) for layer in self.feat_content_layers]
-        self.content_loss = reduce(lambda x, y: x+y, content_loss_list) * self.lambda_content
+        content_loss_list = [self.feat_content_layers[layer] * self.mrf_loss(gen_vgg_feats[layer], tar_vgg_feats[layer])
+                             for layer in self.feat_content_layers]
+        self.content_loss = reduce(lambda x, y: x + y, content_loss_list) * self.lambda_content
 
         return self.style_loss + self.content_loss
 
@@ -711,7 +647,6 @@ class IDMRFLoss(nn.Module):
         # for key in self.feat_style_layers.keys():
         #     loss += torch.mean((gen_vgg_feats[key] - tar_vgg_feats[key])**2)
         # return loss
-
 
 
 ######################################################## vgg16 face
@@ -743,7 +678,7 @@ class VGG_16(nn.Module):
         self.fc6 = nn.Linear(512 * 7 * 7, 4096)
         self.fc7 = nn.Linear(4096, 4096)
         self.fc8 = nn.Linear(4096, 2622)
-        self.mean = torch.Tensor(np.array([129.1863, 104.7624, 93.5940])/255.).float().view(1, 3, 1, 1).cuda()
+        self.mean = torch.Tensor(np.array([129.1863, 104.7624, 93.5940]) / 255.).float().view(1, 3, 1, 1).cuda()
         # self.mean = torch.tensor([0.485, 0.456, 0.406]).view(1, 3, 1, 1).cuda()
 
     def load_weights(self, path="pretrained/VGG_FACE.t7"):
@@ -807,6 +742,7 @@ class VGG_16(nn.Module):
         out['last'] = x
         return out
 
+
 class VGGLoss(nn.Module):
     def __init__(self):
         super(VGGLoss, self).__init__()
@@ -841,7 +777,7 @@ class VGGLoss(nn.Module):
 
     def exp_norm_relative_dist(self, relative_dist):
         scaled_dist = relative_dist
-        dist_before_norm = torch.exp((self.bias - scaled_dist)/self.nn_stretch_sigma)
+        dist_before_norm = torch.exp((self.bias - scaled_dist) / self.nn_stretch_sigma)
         self.cs_NCHW = self.sum_normalize(dist_before_norm)
         return self.cs_NCHW
 
@@ -859,8 +795,8 @@ class VGGLoss(nn.Module):
         BatchSize = tar.size(0)
 
         for i in range(BatchSize):
-            tar_feat_i = tar_normalized[i:i+1, :, :, :]
-            gen_feat_i = gen_normalized[i:i+1, :, :, :]
+            tar_feat_i = tar_normalized[i:i + 1, :, :, :]
+            gen_feat_i = gen_normalized[i:i + 1, :, :, :]
             patches_OIHW = self.patch_extraction(tar_feat_i)
 
             cosine_dist_i = F.conv2d(gen_feat_i, patches_OIHW)
@@ -880,11 +816,13 @@ class VGGLoss(nn.Module):
         ## gen: [bz,3,h,w] rgb [0,1]
         gen_vgg_feats = self.featlayer(gen)
         tar_vgg_feats = self.featlayer(tar)
-        style_loss_list = [self.feat_style_layers[layer] * self.mrf_loss(gen_vgg_feats[layer], tar_vgg_feats[layer]) for layer in self.feat_style_layers]
-        self.style_loss = reduce(lambda x, y: x+y, style_loss_list) * self.lambda_style
+        style_loss_list = [self.feat_style_layers[layer] * self.mrf_loss(gen_vgg_feats[layer], tar_vgg_feats[layer]) for
+                           layer in self.feat_style_layers]
+        self.style_loss = reduce(lambda x, y: x + y, style_loss_list) * self.lambda_style
 
-        content_loss_list = [self.feat_content_layers[layer] * self.mrf_loss(gen_vgg_feats[layer], tar_vgg_feats[layer]) for layer in self.feat_content_layers]
-        self.content_loss = reduce(lambda x, y: x+y, content_loss_list) * self.lambda_content
+        content_loss_list = [self.feat_content_layers[layer] * self.mrf_loss(gen_vgg_feats[layer], tar_vgg_feats[layer])
+                             for layer in self.feat_content_layers]
+        self.content_loss = reduce(lambda x, y: x + y, content_loss_list) * self.lambda_content
 
         return self.style_loss + self.content_loss
         # loss = 0
@@ -892,9 +830,12 @@ class VGGLoss(nn.Module):
         #     loss += torch.mean((gen_vgg_feats[key] - tar_vgg_feats[key])**2)
         # return loss
 
+
 ##############################################
 ## ref: https://github.com/cydonia999/VGGFace2-pytorch
 from ..models.frnet import resnet50, load_state_dict
+
+
 class VGGFace2Loss(nn.Module):
     def __init__(self, pretrained_model, pretrained_data='vggface2'):
         super(VGGFace2Loss, self).__init__()
@@ -904,10 +845,10 @@ class VGGFace2Loss(nn.Module):
 
     def reg_features(self, x):
         # out = []
-        margin=10
-        x = x[:,:,margin:224-margin,margin:224-margin]
+        margin = 10
+        x = x[:, :, margin:224 - margin, margin:224 - margin]
         # x = F.interpolate(x*2. - 1., [224,224], mode='nearest')
-        x = F.interpolate(x*2. - 1., [224,224], mode='bilinear')
+        x = F.interpolate(x * 2. - 1., [224, 224], mode='bilinear')
         # import ipdb; ipdb.set_trace()
         feature = self.reg_model(x)
         feature = feature.view(x.size(0), -1)
@@ -915,8 +856,8 @@ class VGGFace2Loss(nn.Module):
 
     def transform(self, img):
         # import ipdb;ipdb.set_trace()
-        img = img[:, [2,1,0], :, :].permute(0,2,3,1) * 255 - self.mean_bgr
-        img = img.permute(0,3,1,2)
+        img = img[:, [2, 1, 0], :, :].permute(0, 2, 3, 1) * 255 - self.mean_bgr
+        img = img.permute(0, 3, 1, 2)
         return img
 
     def _cos_metric(self, x1, x2):
