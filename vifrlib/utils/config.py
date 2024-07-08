@@ -51,6 +51,7 @@ cfg.model.fm_model_file = os.path.join(cfg.topo_dir, 'hifi3dpp_model_info.mat') 
 cfg.model.unwrap_info_file = os.path.join(cfg.topo_dir, 'unwrap_1024_info.mat')
 cfg.model.texgan_model_file = os.path.join(cfg.checkpoints_dir, 'texgan_model/texgan_ffhq_uv.pth') # texgan
 cfg.model.net_recon_path = os.path.join(cfg.checkpoints_dir, 'deep3d_model/epoch_latest.pth') # deep3d预训练模型
+cfg.model.vgg_model_path = os.path.join(cfg.checkpoints_dir, 'vgg_model/vgg16.pt') # vgg模型
 cfg.model.E_hifi3d_backbone = 'resnet50' # 编码器主干
 cfg.model.net_recog_path = os.path.join(cfg.checkpoints_dir, 'arcface_model/ms1mv3_arcface_r50_fp16_backbone.pth') # 人脸识别模型
 cfg.model.net_recog = 'r50'
@@ -74,12 +75,14 @@ cfg.model.uselmk86 = False
 # ---------------------------------------------------------------------------- #
 cfg.loss = CN()
 cfg.loss.lmk = 1.0
-cfg.loss.mouthkc = 0.0  # 新新新新新新新新新新新新新新新新新新新新新新新新新新新新新新新新新新新新新新新
+cfg.loss.mouthkc = 0.0
 cfg.loss.useWlmk = True
 cfg.loss.lmk_num = 68
 cfg.loss.eyed = 1.0
 cfg.loss.lipd = 0.5
 cfg.loss.photo = 2.0
+cfg.loss.vgg = 100.0
+
 cfg.loss.useSeg = True
 cfg.loss.mask_weight_dict_path = os.path.join(cfg.vifr_dir, 'data', 'mask_weight_dict.pkl')
 cfg.loss.id = 0.2

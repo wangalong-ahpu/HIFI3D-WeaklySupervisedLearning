@@ -197,7 +197,7 @@ class SmallFaceScape_TrainDataset(Dataset):
                 input_data = torch.load(os.path.join(self.train_path, name + '.pt'))
                 if 'trans_params' in input_data:
                     input_data.pop('trans_params')
-                input_data = {k: v.squeeze() for (k, v) in input_data.items()}
+                input_data = {k: v.squeeze(0) for (k, v) in input_data.items()}
 
                 img_list.append(input_data['img'])
                 skin_mask_list.append(input_data['skin_mask'])
@@ -209,7 +209,7 @@ class SmallFaceScape_TrainDataset(Dataset):
             input_data = torch.load(os.path.join(self.train_path, name + '.pt'))
             if 'trans_params' in input_data:
                 input_data.pop('trans_params')
-            input_data = {k: v.squeeze() for (k, v) in input_data.items()}
+            input_data = {k: v.squeeze(0) for (k, v) in input_data.items()}
 
             img_list.append(input_data['img'])
             skin_mask_list.append(input_data['skin_mask'])

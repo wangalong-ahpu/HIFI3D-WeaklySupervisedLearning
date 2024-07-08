@@ -256,23 +256,23 @@ class VIFR(nn.Module):
         codedict['image'] = image
         return codedict
     
-    def infer_render(self, is_uv_tex=True):
-        # forward face model
-        self.pred_coeffs_dict = self.facemodel.split_coeff(self.pred_coeffs)
-        self.pred_vertex, self.pred_tex, self.pred_shading, self.pred_color, self.pred_lm = \
-            self.facemodel.compute_for_render(codedict)
-        if is_uv_tex:
-            # forward texture gan
-            self.pred_uv_map = self.tex_gan.synth_uv_map(self.pred_latents_w)
-            # render front face
-            vertex_uv_coord = self.facemodel.vtx_vt.unsqueeze(0).repeat(self.pred_coeffs.size()[0], 1, 1)
-            render_feat = torch.cat([vertex_uv_coord, self.pred_shading], axis=2)
-            self.render_face_mask, _, self.render_face = \
-                self.renderer(self.pred_vertex, self.facemodel.face_buf, feat=render_feat, uv_map=self.pred_uv_map)
-        else:
-            # render front face
-            self.render_face_mask, _, self.render_face = \
-                self.renderer(self.pred_vertex, self.facemodel.face_buf, feat=self.pred_color)
+    # def infer_render(self, is_uv_tex=True):
+    #     # forward face model
+    #     self.pred_coeffs_dict = self.facemodel.split_coeff(self.pred_coeffs)
+    #     self.pred_vertex, self.pred_tex, self.pred_shading, self.pred_color, self.pred_lm = \
+    #         self.facemodel.compute_for_render(codedict)
+    #     if is_uv_tex:
+    #         # forward texture gan
+    #         self.pred_uv_map = self.tex_gan.synth_uv_map(self.pred_latents_w)
+    #         # render front face
+    #         vertex_uv_coord = self.facemodel.vtx_vt.unsqueeze(0).repeat(self.pred_coeffs.size()[0], 1, 1)
+    #         render_feat = torch.cat([vertex_uv_coord, self.pred_shading], axis=2)
+    #         self.render_face_mask, _, self.render_face = \
+    #             self.renderer(self.pred_vertex, self.facemodel.face_buf, feat=render_feat, uv_map=self.pred_uv_map)
+    #     else:
+    #         # render front face
+    #         self.render_face_mask, _, self.render_face = \
+    #             self.renderer(self.pred_vertex, self.facemodel.face_buf, feat=self.pred_color)
             
     def decode(self, codedict, is_uv_tex=False, name="None", rendering=True, iddict=None, vis_lmk=True, return_vis=True, use_detail=True,
                 render_orig=False, original_image=None, tform=None):
@@ -284,8 +284,8 @@ class VIFR(nn.Module):
 
         # 参数->hifi3d拓扑人脸模型
         pred_vertex, pred_tex, pred_shading, pred_color, pred_lmk = self.hifi3dpp.compute_for_render(codedict)
-        pred_lmk[..., 1] = self.cfg.dataset.image_size - 1 - pred_lmk[..., 1]
-        pred_lmk = pred_lmk/(self.cfg.dataset.image_size/2)-1
+        # pred_lmk[..., 1] = self.cfg.dataset.image_size - 1 - pred_lmk[..., 1]
+        # pred_lmk = pred_lmk/(self.cfg.dataset.image_size/2)-1
         if is_uv_tex:
             # forward texture gan
             pred_uv_map = self.tex_gan.synth_uv_map(self.pred_latents_w)

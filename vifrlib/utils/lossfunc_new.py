@@ -142,17 +142,73 @@ def batch_kp_2d_l1_loss(real_2d_kp, predicted_2d_kp, weights=None):
     dif_abs = torch.abs(kp_gt[:, :2] - kp_pred).sum(1)
     return torch.matmul(dif_abs, vis) * 1.0 / k
 
-def landmark_loss(predicted_landmarks, landmarks_gt, weight=1.):
-    # (predicted_theta, predicted_verts, predicted_landmarks) = ringnet_outputs[-1]
-    if torch.is_tensor(landmarks_gt) is not True:
-        real_2d = torch.cat(landmarks_gt).cuda()
-    else:
-        real_2d = torch.cat([landmarks_gt, torch.ones((landmarks_gt.shape[0], 68, 1)).cuda()], dim=-1)
-    # real_2d = torch.cat(landmarks_gt).cuda()
+# def landmark_loss(predicted_landmarks, landmarks_gt, weight=1.): # 原albedogan &deca
+#     # (predicted_theta, predicted_verts, predicted_landmarks) = ringnet_outputs[-1]
+#     if torch.is_tensor(landmarks_gt) is not True:
+#         real_2d = torch.cat(landmarks_gt).cuda()
+#     else:
+#         real_2d = torch.cat([landmarks_gt, torch.ones((landmarks_gt.shape[0], 68, 1)).cuda()], dim=-1)
+#     # real_2d = torch.cat(landmarks_gt).cuda()
 
-    loss_lmk_2d = batch_kp_2d_l1_loss(real_2d, predicted_landmarks)
-    return loss_lmk_2d * weight
+#     loss_lmk_2d = batch_kp_2d_l1_loss(real_2d, predicted_landmarks)
+#     return loss_lmk_2d * weight
+ 
+# ====================================================================================================FFHQ-UV
+def landmark_loss(predict_lm, gt_lm, weight=None):
+    '''
+    Weighted mse loss on 68/86 landmarks.
+    Args:
+        predict_lm, gt_lm: torch.Tensor, (B, 68/86, 2).
+        weight: torch.Tensor, (1, 68/86).
+    '''
+    n_lmk = predict_lm.shape[1]
+    assert gt_lm.shape[1] == n_lmk
+    if not weight:
+        if n_lmk == 68:
+            weight = np.ones([68])
+            weight[28:31] = 20
+            weight[-8:] = 20
+        elif n_lmk == 86:
+            weight = np.ones([86])
+        weight = np.expand_dims(weight, 0)
+        weight = torch.tensor(weight).to(predict_lm.device)
+    loss = torch.sum((predict_lm - gt_lm)**2, dim=-1) * weight
+    loss = torch.sum(loss) / (predict_lm.shape[0] * predict_lm.shape[1])
+    return loss
 
+def photo_loss(imageA, imageB, mask):
+    '''
+    Image level loss with a mask.
+    L1 norm.
+    Args:
+        imageA, imageB: torch.Tensor, (B, 3, H, W).
+        mask: torch.Tensor, (B, 1, H, W).
+    '''
+    imageA = imageA * mask
+    imageB = imageB * mask
+    loss = F.l1_loss(imageA, imageB, reduction='sum') / torch.max(torch.sum(mask), torch.tensor(1.0).to(mask.device))
+    return loss
+
+def vgg_loss(image_A, image_B, vgg_model):
+    '''
+    Vgg Loss, L2 norm.
+    Args:
+        imageA: torch.Tensor, (B, 3, H, W).
+        image_B_features: torch.Tensor, (B, -1), the feature of target image_B.
+        vgg_model: the vgg model.
+    '''
+    if image_A.shape[2] > 256:
+        image_A = F.interpolate(image_A, size=(256, 256), mode='area')
+    if image_B.shape[2] > 256:
+        image_B = F.interpolate(image_B, size=(256, 256), mode='area')
+    image_A = image_A * 255.
+    image_B = image_B * 255.
+    image_A_features = vgg_model(image_A, resize_images=False, return_lpips=True)
+    image_B_features = vgg_model(image_B, resize_images=False, return_lpips=True)
+    dist = (image_A_features - image_B_features).square().sum()
+    return dist
+
+# ====================================================================================================
 
 def eye_dis(landmarks):
     # left eye:  [38,42], [39,41] - 1

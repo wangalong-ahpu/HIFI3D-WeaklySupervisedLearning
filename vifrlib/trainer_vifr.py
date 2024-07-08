@@ -19,6 +19,7 @@ from .utils.renderer import SRenderY
 from .models.encoders import ResnetEncoder
 # from .models.FLAME import FLAME, FLAMETex
 from .models.decoders import Generator
+from .models.stylegan2 import dnnlib
 from .utils import util
 from .utils.rotation_converter import batch_euler2axis
 from .datasets import datasets
@@ -55,6 +56,7 @@ class Trainer(object):
         self.unwrap_info_file = self.cfg.model.unwrap_info_file
         self.texgan_model_file = self.cfg.model.texgan_model_file
         self.net_recon_path = self.cfg.model.net_recon_path
+        self.vgg_model_path = self.cfg.model.vgg_model_path
         self.E_hifi3d_backbone = self.cfg.model.E_hifi3d_backbone
         self.net_recog_path = self.cfg.model.net_recog_path
         self.net_recog = self.cfg.model.net_recog 
@@ -162,16 +164,6 @@ class Trainer(object):
 
 
 
-
-
-
-
-
-
-
-
-
-
         # # 原
         # if config is None:
         #     self.cfg = cfg
@@ -226,6 +218,10 @@ class Trainer(object):
 
         # vifr model
         self.vifr = model.to(self.device)
+        # the vgg model
+        with dnnlib.util.open_url(self.vgg_model_path) as f:
+            self.net_vgg = torch.jit.load(f).eval()
+            self.net_vgg.eval()
         # 设置优化器
         self.opt = torch.optim.Adam(self.vifr.E_hifi3d.parameters(),lr=self.cfg.train.lr,amsgrad=False)
         # self.configure_optimizers()
@@ -271,8 +267,6 @@ class Trainer(object):
     #                                 lr=self.cfg.train.lr,
     #                                 amsgrad=False)
 
-        
-
     def load_checkpoint(self):
         model_dict = self.vifr.model_dict()
         # resume training, including model weight, opt, steps
@@ -301,10 +295,21 @@ class Trainer(object):
         # if self.train_detail:
         #     self.deca.E_flame.eval()
         # [B, K, 3, size, size] ==> [BxK, 3, size, size]
-        image = batch['image'].to(self.device); image = image.view(-1, image.shape[-3], image.shape[-2], image.shape[-1]) 
-        gt_lmk = batch['landmark'].to(self.device); gt_lmk = gt_lmk.view(-1, gt_lmk.shape[-2], gt_lmk.shape[-1])
-        gt_mask = batch['mask'].to(self.device); gt_mask = gt_mask.view(-1, image.shape[-2], image.shape[-1]) 
-        gt_arcface = batch['arcface'].to(self.device); gt_arcface = gt_arcface.view(-1, gt_arcface.shape[-3], gt_arcface.shape[-2], gt_arcface.shape[-1]) 
+        image = batch['img'].to(self.device)
+        image = image.view(-1, image.shape[-3], image.shape[-2], image.shape[-1]) 
+        skin_mask = batch['skin_mask'].to(self.device)
+        skin_mask = skin_mask.view(-1, skin_mask.shape[-3],skin_mask.shape[-2], skin_mask.shape[-1])
+        parse_mask = batch['parse_mask'].to(self.device)
+        parse_mask = parse_mask.view(-1, parse_mask.shape[-3], parse_mask.shape[-2], parse_mask.shape[-1])
+        gt_lmk = batch['lmk'].to(self.device)
+        gt_lmk = gt_lmk.view(-1, gt_lmk.shape[-2], gt_lmk.shape[-1])
+        gt_M = batch['M'].to(self.device)
+        gt_M = gt_M.view(-1, gt_M.shape[-2], gt_M.shape[-1])
+
+        # gt_mask = batch['mask'].to(self.device)
+        
+        # gt_mask = gt_mask.view(-1, image.shape[-2], image.shape[-1]) 
+        # gt_arcface = batch['arcface'].to(self.device); gt_arcface = gt_arcface.view(-1, gt_arcface.shape[-3], gt_arcface.shape[-2], gt_arcface.shape[-1]) 
 
         #-- encoder
         codedict = self.vifr.encode(torchvision.transforms.Resize(224)(image))
@@ -313,12 +318,17 @@ class Trainer(object):
         opdict = self.vifr.decode(codedict, rendering = rendering, vis_lmk=False, return_vis=False, use_detail=False)
         # -------------------------------------------对opdict补充
         opdict['image'] = image
-        opdict['gt_lmk'] = gt_lmk
+        pred_lmk = opdict['pred_lmk']
+        # 转换lmk->[0,1]
+        gt_lmk[..., 1] = image.shape[-1] - 1 - gt_lmk[..., 1]; gt_lmk = gt_lmk/(image.shape[-1]/2)-1; opdict['gt_lmk'] = gt_lmk
+        pred_lmk[..., 1] = image.shape[-1] - 1 - pred_lmk[..., 1]; pred_lmk = pred_lmk/(image.shape[-1]/2)-1; opdict['pred_lmk'] = pred_lmk
         # 获取渲染后的图像图像
-        if self.cfg.loss.photo > 0.:
+        # if self.cfg.loss.photo > 0.:
+            # # 光度损失
+            # losses['photometric_texture'] = 0
             # pred_face_img = opdict['render_face']  * opdict['render_face_mask'] + (1 - opdict['render_face_mask']) * opdict['image']
             # opdict[]
-            pass
+            # pass
             # #------ rendering
             # # mask
             # mask_face_eye = F.grid_sample(self.deca.uv_face_eye_mask.expand(batch_size,-1,-1,-1), opdict['grid'].detach(), align_corners=False) 
@@ -328,16 +338,18 @@ class Trainer(object):
         
         # ------------------------------------------计算各Loss
         losses = {}
+        if self.cfg.loss.photo > 0.:# 光度损失
+            loss_face_mask = opdict['render_face_mask'] * parse_mask * skin_mask
+            losses['photometric_texture'] = (lossfunc_new.photo_loss(opdict['pred_face_img'],opdict['image'],loss_face_mask)) * self.cfg.loss.photo
         # 关键点损失
-        losses['landmark'] = 0
+        losses['landmark'] = (lossfunc_new.landmark_loss(opdict['pred_lmk'],opdict['gt_lmk'])) * self.cfg.loss.lmk # 待优化权重
         ## 嘴唇关键点距离损失
         losses['lip_distance'] = 0
         ## 眼皮关键点距离损失
         losses['eye_distance'] = 0
-        # 光度损失
-        losses['photometric_texture'] = 0
+        
         # 身份损失
-        losses['identity'] = 0
+        losses['identity'] = (lossfunc_new.landmark_loss(opdict['pred_lmk'],opdict['gt_lmk'])) * self.cfg.loss.vgg # 待优化权重
         # 正则化损失
         losses['id_reg'] = (torch.sum(codedict['id']**2)/2)*self.cfg.loss.reg_id
         losses['exp_reg'] = (torch.sum(codedict['exp']**2)/2)*self.cfg.loss.reg_exp

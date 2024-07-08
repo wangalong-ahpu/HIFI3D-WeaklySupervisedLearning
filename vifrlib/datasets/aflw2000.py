@@ -24,7 +24,7 @@ class AFLW2000(Dataset):
         elif os.path.isfile(testpath) and (testpath[-3:] in ['jpg', 'png']):
             self.imagepath_list = [testpath]
         else:
-            print('please check the input path')
+            print('please check the AFLW2000 input path')
             exit()
         print('total {} images'.format(len(self.imagepath_list)))
         self.imagepath_list = sorted(self.imagepath_list)
