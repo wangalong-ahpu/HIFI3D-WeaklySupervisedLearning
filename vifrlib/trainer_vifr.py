@@ -56,7 +56,7 @@ class Trainer(object):
         self.batch_size = self.cfg.dataset.batch_size
         self.image_size = self.cfg.dataset.image_size
         # self.uv_size = self.cfg.model.uv_size
-        # self.K = self.cfg.dataset.K
+        self.K = self.cfg.dataset.K
         self.fm_model_file = self.cfg.model.fm_model_file
         self.unwrap_info_file = self.cfg.model.unwrap_info_file
         self.texgan_model_file = self.cfg.model.texgan_model_file
@@ -326,6 +326,36 @@ class Trainer(object):
 
         #-- encoder
         codedict = self.vifr.encode(torchvision.transforms.Resize(224)(image))
+
+        if self.cfg.loss.shape_consistency:
+            '''
+            make sure s0, s1 is something to make shape close
+            the difference from ||so - s1|| is 
+            the later encourage s0, s1 is cloase in l2 space, but not really ensure shape will be close
+            待开发
+            '''
+            #param_dict = {'id': 532, 'exp': 45, 'tex': 439, 'angle': 3, 'gamma': 27, 'trans':3}
+            new_order = np.array([np.random.permutation(self.K) + i * self.K for i in range(self.batch_size)])
+            new_order = new_order.flatten()
+
+            idcode = codedict['id']
+            expcode = codedict['exp']
+            idcode_new = idcode[new_order]
+            expcode_new = expcode[new_order]
+            codedict['id'] = torch.cat([idcode, idcode_new], dim=0)
+            codedict['exp'] = torch.cat([expcode, expcode_new], dim=0)
+
+            for key in ['image', 'tex', 'angle', 'gamma', 'trans']:
+                if key in codedict:
+                    code = codedict[key]
+                    codedict[key] = torch.cat([code, code], dim=0)
+            ## append gt
+            image = torch.cat([image, image], dim=0)
+            skin_mask = torch.cat([skin_mask, skin_mask], dim=0)
+            parse_mask = torch.cat([parse_mask, parse_mask], dim=0)
+            gt_lmk = torch.cat([gt_lmk, gt_lmk], dim=0)
+            gt_M = torch.cat([gt_M, gt_M], dim=0)
+        
         #-- decoder
         rendering = True if self.cfg.loss.photo>0 else False
         opdict = self.vifr.decode(codedict, rendering = rendering, vis_lmk=False, return_vis=False, use_detail=False)

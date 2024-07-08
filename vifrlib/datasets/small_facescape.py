@@ -175,11 +175,14 @@ class SmallFacescapeDataset(Dataset):
 class SmallFaceScape_TrainDataset(Dataset):
     def __init__(self, K, train_path):
 
-        self.K = K # K<16
+        self.K = K # K<=16
         self.train_path = train_path
-        datafile = os.path.join(train_path, f'train_list_k{K}.npy')
+        if K==1:
+            datafile = os.path.join(train_path, f'train_list_k{K}.npy')
+        else:
+            datafile = os.path.join(train_path, 'train_list_k16.npy')
         self.data_lines = np.load(datafile).astype('str')
-
+        
     def __len__(self):
         return len(self.data_lines)
 

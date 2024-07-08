@@ -200,15 +200,15 @@ class VIFR(nn.Module):
 
 
 
-    def decompose_code(self, code, num_dict):
+    def decompose_code(self, code, param_dict):
         ''' 
         分解系数
         param_dict = {'id': 532, 'exp': 45, 'tex': 439, 'angle': 3, 'gamma': 27, 'trans':3}
         '''
         code_dict = {}
         start = 0
-        for key in num_dict:
-            end = start+int(num_dict[key])
+        for key in param_dict:
+            end = start+int(param_dict[key])
             code_dict[key] = code[:, start:end]
             start = end
             if key == 'gamma':

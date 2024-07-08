@@ -1,12 +1,13 @@
 from tqdm import tqdm, trange
 import os
 import numpy as np
+import random
 
 def extract_single_filenames(folder_path, output_file):
     file_list = []
     subfolders = [f.path for f in os.scandir(folder_path) if f.is_dir()]
     for sub_dir in subfolders:
-        fnames = [fn for fn in sorted(os.listdir(os.path.join(folder_path, sub_dir))) if fn.endswith('.pt')]
+        fnames = [fn for fn in sorted(os.listdir(os.path.join(folder_path, sub_dir))) if fn.endswith('.pt')]; random.shuffle(fnames)
         current_folder_files = []
         for filename in fnames:
             file_path = os.path.join(os.path.basename(sub_dir), filename)
@@ -22,7 +23,7 @@ def extract_K_filenames(folder_path, output_file, K):
     file_list = []
     subfolders = [f.path for f in os.scandir(folder_path) if f.is_dir()]
     for sub_dir in subfolders:
-        fnames = [fn for fn in sorted(os.listdir(os.path.join(folder_path, sub_dir))) if fn.endswith('.pt')]
+        fnames = [fn for fn in sorted(os.listdir(os.path.join(folder_path, sub_dir))) if fn.endswith('.pt')]; random.shuffle(fnames)
         current_folder_files = []
         for filename in fnames:
             file_path = os.path.join(os.path.basename(sub_dir), filename)

@@ -1,14 +1,14 @@
-output_dir: "/media/wang/SSD_1/demo/VIFR_TR/pretrain/0708_resnet50_b8K1_68_1080(2)"
+output_dir: "/media/wang/SSD_1/demo/VIFR_TR/pretrain/0708_resnet50_b8K1_68_1080(3)"
 pretrained_modelpath: ''
 
 
 dataset:
   training_data: ['small_facescape']
   eval_data: [ 'aflw2000' ]
-  batch_size: 8
-  num_workers: 4
-  K: 1 #注意修改<数据集文件夹>
-  isSingle: True
+  batch_size: 4
+  num_workers: 8
+  K: 8 #注意修改<数据集文件夹>
+  isSingle: False
   #数据集地址
   # facescape_dir: "/media/wang/SSD_2/Datasets/FaceScape/fmview_train_new"
   # small_facescape_dir: "/media/wang/SSD_2/Datasets/test_arcface"
@@ -22,11 +22,11 @@ loss:
   id: 0.08
   vgg: 0.
   useSeg: False
-  shape_consistency: False
+  shape_consistency: True
   detail_consistency: False
   lmk_num: 68 #注意修改aflw2000_dir
   lmk: 2.
-  mouthkc: 0.0  # 新新新新新新新新新新新新新新新新新新新新新新新新新新新新新新新新新新新新新新新
+  mouthkc: 0.
 
   eyed: 1.  #1.0.
   lipd: 1. #0.3
