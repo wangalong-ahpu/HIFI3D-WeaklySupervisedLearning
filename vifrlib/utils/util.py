@@ -587,7 +587,7 @@ def plot_kpts(image, kpts, color = 'r'):
         kpt: (68, 3).
     '''
     if color == 'r':
-        c = (255, 0, 0)
+        c = (0, 0, 255)
     elif color == 'g':
         c = (0, 255, 0)
     elif color == 'b':

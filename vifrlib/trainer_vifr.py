@@ -703,7 +703,7 @@ class Trainer(object):
                     visdict = {
                         'inputs': opdict['image'][visind], 
                         'gt_lmk_img': util.tensor_vis_landmarks(opdict['image'][visind], opdict['gt_lmk'][visind], isScale=True),
-                        'pred_lmk_img': util.tensor_vis_landmarks(opdict['image'][visind], opdict['pred_lmk'][visind], isScale=True),
+                        'pred_lmk_img': util.tensor_vis_landmarks(opdict['image'][visind], opdict['pred_lmk'][visind], color='b', isScale=True),
                         'render_faces': render_faces,
                         'pred_face_img': pred_face_imgs
                     }
